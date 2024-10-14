@@ -1,12 +1,27 @@
+import { useCallback } from "react";
 import Heart from "../../../assets/Heart";
+import useAppContext from "../../../hooks/useAppContext";
 import { Book } from "../../../types/api.types";
 
 type Props = {
   currentBooks: Book[];
-  addWishList(id: number): void;
 };
 
-export default function BookList({ currentBooks, addWishList }: Props) {
+export default function BookList({ currentBooks }: Props) {
+  const { books, updateBooks } = useAppContext();
+
+  const addWishList = useCallback(
+    (id: number) => {
+      const clonedBooks = [...books];
+      const book = clonedBooks.find((b) => b.id === id);
+
+      if (book) {
+        book.wishlisted = !book.wishlisted;
+      }
+      updateBooks(clonedBooks);
+    },
+    [books, updateBooks]
+  );
   return (
     <ul className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-7">
       {currentBooks.map((book) => (
