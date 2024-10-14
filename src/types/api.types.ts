@@ -20,4 +20,7 @@ export interface Book {
   media_type: string;
   formats: Format;
   download_count: number;
+
+  // custom
+  wishlisted?: boolean;
 }
