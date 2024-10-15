@@ -25,7 +25,22 @@ export default function Home() {
   const currentBooks = useMemo(() => {
     const indexOfFirstBook = indexOfLastBook - booksPerPage;
 
-    return books.slice(indexOfFirstBook, indexOfLastBook);
+    const perPageBooks = books.slice(indexOfFirstBook, indexOfLastBook);
+
+    const wishlistedBooks: Book[] = JSON.parse(
+      localStorage.getItem("wishlistedBooks") || "[]"
+    );
+
+    const perPageBooksWithWishlisted = perPageBooks.map((book) => {
+      const isWishlisted = wishlistedBooks.some(
+        (wishListedbook) => wishListedbook.id === book.id
+      );
+
+      return { ...book, wishlisted: isWishlisted };
+    });
+    console.log({ perPageBooks, perPageBooksWithWishlisted });
+
+    return perPageBooksWithWishlisted;
   }, [books, indexOfLastBook]);
 
   // Handle page change
@@ -40,7 +55,7 @@ export default function Home() {
       return (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
-            Server is slow. Please wait...
+            Books loading. Please wait...
           </h1>
           <EllipsisIndicator />
         </div>
