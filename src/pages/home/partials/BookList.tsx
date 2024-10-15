@@ -1,12 +1,51 @@
+import { useCallback } from "react";
 import Heart from "../../../assets/Heart";
+import useAppContext from "../../../hooks/useAppContext";
 import { Book } from "../../../types/api.types";
 
 type Props = {
   currentBooks: Book[];
-  addWishList(id: number): void;
 };
 
-export default function BookList({ currentBooks, addWishList }: Props) {
+export default function BookList({ currentBooks }: Props) {
+  const { books, updateBooks } = useAppContext();
+
+  const handleWishListToggle = useCallback(
+    (id: number) => {
+      const clonedBooks = [...books];
+      const book = clonedBooks.find((b) => b.id === id);
+
+      if (book) {
+        book.wishlisted = !book.wishlisted;
+      }
+
+      updateBooks(clonedBooks);
+
+      // doing this because if the operation is too large then the globalState will update later
+      // in this case, I just want to update the wishlistedBooks into the global state at first then update the localStorage as wishes. So, now I don't have any problem with UI peformance.
+      if (book) {
+        const prevWishlistedBooks: Book[] | any[] = JSON.parse(
+          localStorage.getItem("wishlistedBooks") || "[]"
+        );
+
+        const wishlistedMap = new Map(
+          prevWishlistedBooks.map((b) => [b.id, b])
+        );
+
+        if (wishlistedMap.has(id)) {
+          wishlistedMap.delete(id);
+        } else {
+          wishlistedMap.set(id, book);
+        }
+
+        localStorage.setItem(
+          "wishlistedBooks",
+          JSON.stringify([...wishlistedMap.values()])
+        );
+      }
+    },
+    [books, updateBooks]
+  );
   return (
     <ul className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-7">
       {currentBooks.map((book) => (
@@ -21,7 +60,7 @@ export default function BookList({ currentBooks, addWishList }: Props) {
           <button
             type="button"
             className="absolute right-2 top-2"
-            onClick={() => addWishList(book.id)}
+            onClick={() => handleWishListToggle(book.id)}
           >
             <Heart fill={!!book.wishlisted} />
           </button>

@@ -1,45 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
+import useAppContext from "../../hooks/useAppContext";
 import { Book } from "../../types/api.types";
 import BookList from "./partials/BookList";
 import Error from "./partials/Error";
 import Pagination from "./partials/Pagination";
 
 export default function Home() {
-  const [books, setBooks] = useState<Book[]>([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const { books, error, loading } = useAppContext();
+
   const booksPerPage = 6;
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchBooks = async () => {
-      try {
-        const response = await fetch("https://gutendex.com/books", {
-          signal: controller.signal,
-        });
-        const data = await response.json();
-        setBooks(data.results);
-
-        setLoading(false);
-      } catch (error: any) {
-        if ("detail" in error) {
-          setError(error.detail);
-        }
-
-        console.error("Error fetching books data:", error);
-      }
-    };
-
-    fetchBooks();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
+  // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
     const uniqueGenres = new Set(
       books.flatMap((book: Book) => book.bookshelves)
@@ -52,26 +25,26 @@ export default function Home() {
   const currentBooks = useMemo(() => {
     const indexOfFirstBook = indexOfLastBook - booksPerPage;
 
-    console.log("currentBooks");
-    return books.slice(indexOfFirstBook, indexOfLastBook);
+    const perPageBooks = books.slice(indexOfFirstBook, indexOfLastBook);
+
+    const wishlistedBooks: Book[] = JSON.parse(
+      localStorage.getItem("wishlistedBooks") || "[]"
+    );
+
+    const perPageBooksWithWishlisted = perPageBooks.map((book) => {
+      const isWishlisted = wishlistedBooks.some(
+        (wishListedbook) => wishListedbook.id === book.id
+      );
+
+      return { ...book, wishlisted: isWishlisted };
+    });
+    console.log({ perPageBooks, perPageBooksWithWishlisted });
+
+    return perPageBooksWithWishlisted;
   }, [books, indexOfLastBook]);
 
   // Handle page change
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const addWishList = useCallback(
-    (id: number) => {
-      const clonedBooks = [...books];
-      const book = clonedBooks.find((b) => b.id === id);
-
-      if (book) {
-        book.wishlisted = !book.wishlisted;
-      }
-
-      setBooks(clonedBooks);
-    },
-    [books]
-  );
 
   const renderBookList = useCallback(() => {
     if (error) {
@@ -82,15 +55,15 @@ export default function Home() {
       return (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
-            Server is slow. Please wait...
+            Books loading. Please wait...
           </h1>
           <EllipsisIndicator />
         </div>
       );
     }
 
-    return <BookList currentBooks={currentBooks} addWishList={addWishList} />;
-  }, [error, loading, currentBooks, books, addWishList]);
+    return <BookList currentBooks={currentBooks} />;
+  }, [error, loading, currentBooks, books]);
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
@@ -130,7 +103,7 @@ export default function Home() {
         className="p-2 focus:outline-none rounded-md bg-slate-200 w-full mb-5"
       >
         <option defaultChecked value="genre">
-          Genre
+          Genre/Topic
         </option>
         {renderOptions()}
       </select>
