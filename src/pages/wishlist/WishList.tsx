@@ -1,15 +1,16 @@
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+
+import { useState } from "react";
 import BookList from "../../components/BookList";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
-import { debounce } from "../../lib/debounce";
 import { Book } from "../../types/api.types";
 
-export default function Home() {
+export default function WishList() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [wishlistedBooks, setWishlistedBooks] = useState<Book[]>([]);
   const { books, error, loading } = useAppContext();
 
   const booksPerPage = 6;
@@ -26,57 +27,25 @@ export default function Home() {
   const indexOfLastBook = currentPage * booksPerPage;
   const currentBooks = useMemo(() => {
     const indexOfFirstBook = indexOfLastBook - booksPerPage;
-
-    const perPageBooks = books.slice(indexOfFirstBook, indexOfLastBook);
-
-    const wishlistedBooks: Book[] = JSON.parse(
+    const wishlistedLocalStorageBooks: Book[] = JSON.parse(
       localStorage.getItem("wishlistedBooks") || "[]"
     );
 
-    const perPageBooksWithWishlisted = perPageBooks.map((book) => {
-      const isWishlisted = wishlistedBooks.some(
-        (wishListedbook) => wishListedbook.id === book.id
-      );
+    setWishlistedBooks(wishlistedLocalStorageBooks);
 
-      return { ...book, wishlisted: isWishlisted };
-    });
-
-    return perPageBooksWithWishlisted;
-  }, [books, indexOfLastBook]);
+    return wishlistedLocalStorageBooks.slice(indexOfFirstBook, indexOfLastBook);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indexOfLastBook, books]);
 
   // Handle page change
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const filteredBooks = useMemo(() => {
-    if (!searchTerm) {
-      return books;
-    }
-
-    return books.filter((book) => {
-      return book.title.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-  }, [books, searchTerm]);
-
-  // const SearchTermUpdate = (searchTerm: string) => {
-  //   debouncedSearchTerm(searchTerm);
-  // };
-
-  const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-
-    setSearchTerm(value);
-  };
-
-  const debouncedSearchTerm = useMemo(() => {
-    return debounce(handleSearchTermChange, 300);
-  }, []);
 
   const renderBookList = useCallback(() => {
     if (error) {
       return <Error error={error} />;
     }
 
-    if (loading && !books.length) {
+    if (loading && !wishlistedBooks.length) {
       return (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
@@ -88,7 +57,7 @@ export default function Home() {
     }
 
     return <BookList currentBooks={currentBooks} />;
-  }, [error, loading, currentBooks, books]);
+  }, [error, loading, currentBooks, wishlistedBooks]);
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
@@ -104,25 +73,21 @@ export default function Home() {
 
   return (
     <div className="mx-2 lg:mx-40">
-      {/* <form
-        className="flex justify-center items-center gap-2 my-2"
-      > */}
-      <input
-        type="search"
-        name="search"
-        placeholder="Search books..."
-        onChange={debouncedSearchTerm}
-        value={searchTerm}
-        className="p-2 rounded-md border border-slate-200 focus:outline-none focus:ring ring-indigo-300 w-full my-2"
-      />
+      <form className="flex justify-center items-center gap-2 my-2">
+        <input
+          type="search"
+          name="search"
+          placeholder="Search books..."
+          className="p-2 rounded-md border border-slate-200 focus:outline-none focus:ring ring-indigo-300 w-full"
+        />
 
-      {/* <button
+        <button
           type="submit"
           className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-500 transition-colors text-slate-50 py-2 px-4 text-sm rounded"
         >
           Search
-        </button> */}
-      {/* </form> */}
+        </button>
+      </form>
 
       <select
         name=""
@@ -137,12 +102,12 @@ export default function Home() {
 
       {renderBookList()}
 
-      {books.length ? (
+      {wishlistedBooks.length ? (
         <Pagination
           booksPerPage={booksPerPage}
           currentPage={currentPage}
           indexOfLastBook={indexOfLastBook}
-          lengthOfBooks={books.length}
+          lengthOfBooks={wishlistedBooks.length}
           paginate={paginate}
         />
       ) : null}
