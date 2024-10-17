@@ -1,31 +1,6 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Book } from "../types/api.types";
-import { AppContextValue } from "../types/appContext.types";
-
-// const initialState: InitialStateType = {
-//   books: [],
-//   error: null,
-// };
-
-// function appReducer(state: InitialStateType, action: AppAction) {
-//   switch (action.type) {
-//     case "SET_BOOKS":
-//       return { ...state, books: action.payload };
-//     case "UPDATE_BOOKS":
-//       return {
-//         ...state,
-//         books: action.payload,
-//       };
-//     default:
-//       return state;
-//   }
-// }
-
-type BookState = {
-  books: Book[];
-  loading: boolean;
-  error: string | null;
-};
+import { AppContextValue, BookState } from "../types/appContext.types";
 
 export const AppContext = createContext<AppContextValue | undefined>(undefined);
 
@@ -85,6 +60,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const value: AppContextValue = {
     ...bookState,
     updateBooks,
+    setBooks: setBookState,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

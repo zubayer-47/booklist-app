@@ -1,3 +1,4 @@
+import { Dispatch } from "react";
 import { Book } from "./api.types";
 
 // interface AppContextState {
@@ -5,11 +6,18 @@ import { Book } from "./api.types";
 //   error: string | null;
 // }
 
+export type BookState = {
+  books: Book[];
+  loading: boolean;
+  error: string | null;
+};
+
 export type AppContextValue = {
   books: Book[];
   loading: boolean;
   error: string | null;
   updateBooks: (books: Book[]) => void;
+  setBooks: Dispatch<React.SetStateAction<BookState>>;
 };
 
 // export type InitialStateType = { books: Book[]; error: string | null };

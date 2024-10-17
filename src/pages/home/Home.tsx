@@ -1,18 +1,65 @@
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import BookList from "../../components/BookList";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
-import { debounce } from "../../lib/debounce";
+import useDebounce from "../../hooks/useDebounce";
 import { Book } from "../../types/api.types";
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const { books, error, loading } = useAppContext();
+  const [localLoading, setLocalLoading] = useState(false);
+  const debouncedValue = useDebounce(searchTerm, 300);
+  const { books, error, loading, setBooks } = useAppContext();
 
   const booksPerPage = 6;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchBooks = async () => {
+      setLocalLoading(true);
+      try {
+        const response = await fetch(
+          `https://gutendex.com/books?search=${debouncedValue}`,
+          {
+            signal: controller.signal,
+          }
+        );
+        const data = await response.json();
+
+        setBooks((prev) => ({
+          ...prev,
+          loading: false,
+          books: data.results,
+        }));
+
+        setLocalLoading(false);
+      } catch (error: any) {
+        if ("detail" in error) {
+          setBooks((prev) => ({
+            ...prev,
+            error: error.detail,
+          }));
+        }
+
+        setLocalLoading(false);
+        console.error("Error fetching books data:", error);
+      }
+    };
+
+    if (debouncedValue) {
+      fetchBooks();
+    } else {
+      setBooks((prev) => prev);
+    }
+
+    return () => {
+      controller.abort();
+    };
+  }, [debouncedValue, setBooks]);
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
@@ -48,14 +95,19 @@ export default function Home() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   const filteredBooks = useMemo(() => {
-    if (!searchTerm) {
+    if (!debouncedValue) {
       return books;
     }
 
-    return books.filter((book) => {
-      return book.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const booksBySearchTerm = books.filter((book) => {
+      console.log(book.title.toLowerCase().indexOf(debouncedValue));
+      return book.title.toLowerCase().indexOf(debouncedValue) !== -1;
     });
-  }, [books, searchTerm]);
+
+    console.log(booksBySearchTerm, debouncedValue);
+
+    return booksBySearchTerm;
+  }, [books, debouncedValue]);
 
   // const SearchTermUpdate = (searchTerm: string) => {
   //   debouncedSearchTerm(searchTerm);
@@ -67,16 +119,12 @@ export default function Home() {
     setSearchTerm(value);
   };
 
-  const debouncedSearchTerm = useMemo(() => {
-    return debounce(handleSearchTermChange, 300);
-  }, []);
-
   const renderBookList = useCallback(() => {
     if (error) {
       return <Error error={error} />;
     }
 
-    if (loading && !books.length) {
+    if (localLoading || loading) {
       return (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
@@ -88,7 +136,7 @@ export default function Home() {
     }
 
     return <BookList currentBooks={currentBooks} />;
-  }, [error, loading, currentBooks, books]);
+  }, [error, loading, currentBooks, localLoading]);
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
@@ -111,7 +159,7 @@ export default function Home() {
         type="search"
         name="search"
         placeholder="Search books..."
-        onChange={debouncedSearchTerm}
+        onChange={handleSearchTermChange}
         value={searchTerm}
         className="p-2 rounded-md border border-slate-200 focus:outline-none focus:ring ring-indigo-300 w-full my-2"
       />
