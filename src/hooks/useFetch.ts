@@ -1,14 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { Book } from "../types/api.types";
+import { BookState } from "../types/appContext.types";
 import useAppContext from "./useAppContext";
 
 export default function useFetch(debouncedValue: string, genre: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [url, setUrl] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchedBooks, setSearchedBooks] = useState<Book[]>([]);
-  const { books, setBooks } = useAppContext();
+  const [searchedBookState, setSearchedBookState] = useState<
+    Omit<BookState, "url">
+  >({
+    books: [],
+    next: null,
+    previous: null,
+  });
+  const { books, next, setBookState, url } = useAppContext();
 
   const booksPerPage = 6;
 
@@ -29,9 +35,18 @@ export default function useFetch(debouncedValue: string, genre: string) {
         const data = await response.json();
 
         if (debouncedValue) {
-          setSearchedBooks(data.results);
+          setSearchedBookState(() => ({
+            next: data.next,
+            previous: data.previous,
+            books: data.results,
+          }));
         } else {
-          setBooks(data.results);
+          setBookState((prev) => ({
+            ...prev,
+            next: data.next,
+            previous: data.previous,
+            books: data.results,
+          }));
         }
       } catch (error: any) {
         if ("detail" in error) {
@@ -54,14 +69,14 @@ export default function useFetch(debouncedValue: string, genre: string) {
       isMounted = false;
       controller.abort();
     };
-  }, [url, debouncedValue, genre, books, setSearchedBooks, setBooks]);
+  }, [url, debouncedValue, genre, books, setSearchedBookState, setBookState]);
 
   const indexOfLastBook = currentPage * booksPerPage;
   const currentBooks = useMemo(() => {
     let bookList = books;
 
     if (debouncedValue) {
-      bookList = searchedBooks;
+      bookList = searchedBookState.books;
     }
 
     const indexOfFirstBook = indexOfLastBook - booksPerPage;
@@ -81,24 +96,20 @@ export default function useFetch(debouncedValue: string, genre: string) {
     });
 
     return perPageBooksWithWishlisted;
-  }, [books, indexOfLastBook, debouncedValue, searchedBooks]);
+  }, [books, indexOfLastBook, debouncedValue, searchedBookState.books]);
 
   // Handle page change
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-  const reqOnNewUrl = (url: string) => {
-    setUrl(url);
-  };
-
   return {
     loading,
     error,
-    reqOnNewUrl,
     paginate,
     currentPage,
     currentBooks,
     booksPerPage,
     indexOfLastBook,
-    searchedBooks,
+    searchedBooks: searchedBookState.books,
+    next: searchedBookState.next ?? next,
   };
 }

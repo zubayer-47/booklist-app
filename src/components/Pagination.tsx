@@ -1,8 +1,12 @@
+import { useMemo } from "react";
+import useAppContext from "../hooks/useAppContext";
+
 type Props = {
   currentPage: number;
   indexOfLastBook: number;
   lengthOfBooks: number;
   booksPerPage: number;
+  next: string | null;
   paginate(pageNumber: number): void;
 };
 
@@ -11,8 +15,20 @@ export default function Pagination({
   indexOfLastBook,
   lengthOfBooks,
   booksPerPage,
+  next,
   paginate,
 }: Props) {
+  const { reqOnNewUrl } = useAppContext();
+
+  const numberOfPages = Math.ceil(lengthOfBooks / booksPerPage);
+
+  useMemo(() => {
+    console.log(numberOfPages - 2 === currentPage);
+    if (numberOfPages - 2 === currentPage && next) {
+      reqOnNewUrl(next);
+    }
+  }, [next, reqOnNewUrl, numberOfPages, currentPage]);
+
   return (
     <div className="flex justify-between items-center my-5">
       <button
@@ -23,7 +39,7 @@ export default function Pagination({
         Previous
       </button>
       <p className="">
-        Page {currentPage} of {Math.ceil(lengthOfBooks / booksPerPage)}
+        Page {currentPage} of {numberOfPages}
       </p>
       <button
         onClick={() => paginate(currentPage + 1)}

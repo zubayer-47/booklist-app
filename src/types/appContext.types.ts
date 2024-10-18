@@ -8,14 +8,19 @@ import { Book } from "./api.types";
 
 export type BookState = {
   books: Book[];
-  loading: boolean;
-  error: string | null;
+  next: string | null;
+  previous: string | null;
+  url: string | null;
 };
 
 export type AppContextValue = {
   books: Book[];
+  next: string | null;
+  previous: string | null;
+  url: string | null;
+  reqOnNewUrl: (url: string) => void;
   updateBooks: (books: Book[]) => void;
-  setBooks: Dispatch<React.SetStateAction<Book[]>>;
+  setBookState: Dispatch<React.SetStateAction<BookState>>;
 };
 
 // export type InitialStateType = { books: Book[]; error: string | null };

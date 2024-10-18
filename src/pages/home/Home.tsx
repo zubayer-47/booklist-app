@@ -20,6 +20,7 @@ export default function Home() {
     booksPerPage,
     indexOfLastBook,
     searchedBooks,
+    next,
     currentPage,
   } = useFetch(debouncedValue || "", "");
 
@@ -110,6 +111,7 @@ export default function Home() {
           currentPage={currentPage}
           indexOfLastBook={indexOfLastBook}
           lengthOfBooks={debouncedValue ? searchedBooks.length : books.length}
+          next={next}
           paginate={paginate}
         />
       ) : null}
