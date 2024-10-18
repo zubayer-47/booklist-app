@@ -1,65 +1,27 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import BookList from "../../components/BookList";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
 import useDebounce from "../../hooks/useDebounce";
+import useFetch from "../../hooks/useFetch";
 import { Book } from "../../types/api.types";
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
-  const [localLoading, setLocalLoading] = useState(false);
   const debouncedValue = useDebounce(searchTerm, 300);
-  const { books, error, loading, setBooks } = useAppContext();
-
-  const booksPerPage = 6;
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const fetchBooks = async () => {
-      setLocalLoading(true);
-      try {
-        const response = await fetch(
-          `https://gutendex.com/books?search=${debouncedValue}`,
-          {
-            signal: controller.signal,
-          }
-        );
-        const data = await response.json();
-
-        setBooks((prev) => ({
-          ...prev,
-          loading: false,
-          books: data.results,
-        }));
-
-        setLocalLoading(false);
-      } catch (error: any) {
-        if ("detail" in error) {
-          setBooks((prev) => ({
-            ...prev,
-            error: error.detail,
-          }));
-        }
-
-        setLocalLoading(false);
-        console.error("Error fetching books data:", error);
-      }
-    };
-
-    if (debouncedValue) {
-      fetchBooks();
-    } else {
-      setBooks((prev) => prev);
-    }
-
-    return () => {
-      controller.abort();
-    };
-  }, [debouncedValue, setBooks]);
+  const { books } = useAppContext();
+  const {
+    currentBooks,
+    error,
+    loading,
+    paginate,
+    booksPerPage,
+    indexOfLastBook,
+    searchedBooks,
+    currentPage,
+  } = useFetch(debouncedValue || "", "");
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
@@ -69,49 +31,6 @@ export default function Home() {
 
     return [...uniqueGenres];
   }, [books]);
-
-  const indexOfLastBook = currentPage * booksPerPage;
-  const currentBooks = useMemo(() => {
-    const indexOfFirstBook = indexOfLastBook - booksPerPage;
-
-    const perPageBooks = books.slice(indexOfFirstBook, indexOfLastBook);
-
-    const wishlistedBooks: Book[] = JSON.parse(
-      localStorage.getItem("wishlistedBooks") || "[]"
-    );
-
-    const perPageBooksWithWishlisted = perPageBooks.map((book) => {
-      const isWishlisted = wishlistedBooks.some(
-        (wishListedbook) => wishListedbook.id === book.id
-      );
-
-      return { ...book, wishlisted: isWishlisted };
-    });
-
-    return perPageBooksWithWishlisted;
-  }, [books, indexOfLastBook]);
-
-  // Handle page change
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  const filteredBooks = useMemo(() => {
-    if (!debouncedValue) {
-      return books;
-    }
-
-    const booksBySearchTerm = books.filter((book) => {
-      console.log(book.title.toLowerCase().indexOf(debouncedValue));
-      return book.title.toLowerCase().indexOf(debouncedValue) !== -1;
-    });
-
-    console.log(booksBySearchTerm, debouncedValue);
-
-    return booksBySearchTerm;
-  }, [books, debouncedValue]);
-
-  // const SearchTermUpdate = (searchTerm: string) => {
-  //   debouncedSearchTerm(searchTerm);
-  // };
 
   const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -124,7 +43,7 @@ export default function Home() {
       return <Error error={error} />;
     }
 
-    if (localLoading || loading) {
+    if (loading) {
       return (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
@@ -136,7 +55,7 @@ export default function Home() {
     }
 
     return <BookList currentBooks={currentBooks} />;
-  }, [error, loading, currentBooks, localLoading]);
+  }, [error, loading, currentBooks]);
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
@@ -190,7 +109,7 @@ export default function Home() {
           booksPerPage={booksPerPage}
           currentPage={currentPage}
           indexOfLastBook={indexOfLastBook}
-          lengthOfBooks={books.length}
+          lengthOfBooks={debouncedValue ? searchedBooks.length : books.length}
           paginate={paginate}
         />
       ) : null}

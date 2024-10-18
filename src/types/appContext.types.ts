@@ -14,10 +14,8 @@ export type BookState = {
 
 export type AppContextValue = {
   books: Book[];
-  loading: boolean;
-  error: string | null;
   updateBooks: (books: Book[]) => void;
-  setBooks: Dispatch<React.SetStateAction<BookState>>;
+  setBooks: Dispatch<React.SetStateAction<Book[]>>;
 };
 
 // export type InitialStateType = { books: Book[]; error: string | null };

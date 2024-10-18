@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
-import useAppContext from "../../hooks/useAppContext";
 import { Book } from "../../types/api.types";
 
 type SingleBookState = {
@@ -18,7 +17,6 @@ export default function BookOverview() {
     error: null,
   });
 
-  const { loading, error } = useAppContext();
   const { id } = useParams();
 
   useEffect(() => {
@@ -30,8 +28,6 @@ export default function BookOverview() {
           signal: controller.signal,
         });
         const data = await response.json();
-
-        console.log({ data });
 
         setSingleBookState((prev) => ({
           ...prev,
@@ -45,14 +41,13 @@ export default function BookOverview() {
             loading: false,
             error: error.detail,
           }));
+          return;
         }
 
         setSingleBookState((prev) => ({
           ...prev,
           loading: false,
         }));
-
-        console.error("Error fetching books data:", error);
       }
     };
 
@@ -65,7 +60,7 @@ export default function BookOverview() {
 
   return (
     <div className="mx-2 lg:mx-40 flex flex-col justify-center items-center gap-3 my-10">
-      {!singleBookState.book && loading ? (
+      {!singleBookState.book && singleBookState.loading ? (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
             Books loading. Please wait...
@@ -73,7 +68,7 @@ export default function BookOverview() {
           <EllipsisIndicator />
         </div>
       ) : !singleBookState.book ? (
-        <Error error={error ?? "Book not found"} />
+        <Error error={singleBookState.error ?? "Book not found"} />
       ) : (
         <>
           <h1 className="text-2xl font-bold text-indigo-500">
