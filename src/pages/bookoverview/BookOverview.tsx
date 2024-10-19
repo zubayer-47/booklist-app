@@ -6,24 +6,25 @@ import { Book } from "../../types/api.types";
 
 type SingleBookState = {
   book: Book | null;
-  loading: boolean;
   error: string | null;
 };
 
 export default function BookOverview() {
   const [singleBookState, setSingleBookState] = useState<SingleBookState>({
     book: null,
-    loading: true,
     error: null,
   });
+  const [loading, setLoading] = useState(true);
 
   const { id } = useParams();
 
   useEffect(() => {
     const controller = new AbortController();
+    let isMounted = true;
 
     const fetchBook = async () => {
       try {
+        setLoading(true);
         const response = await fetch(`https://gutendex.com/books/${id}`, {
           signal: controller.signal,
         });
@@ -31,23 +32,20 @@ export default function BookOverview() {
 
         setSingleBookState((prev) => ({
           ...prev,
-          loading: false,
           book: data,
         }));
       } catch (error: any) {
         if ("detail" in error) {
           setSingleBookState((prev) => ({
             ...prev,
-            loading: false,
             error: error.detail,
           }));
           return;
         }
-
-        setSingleBookState((prev) => ({
-          ...prev,
-          loading: false,
-        }));
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -55,12 +53,13 @@ export default function BookOverview() {
 
     return () => {
       controller.abort();
+      isMounted = false;
     };
   }, [id]);
 
   return (
     <div className="mx-2 lg:mx-40 flex flex-col justify-center items-center gap-3 my-10">
-      {!singleBookState.book && singleBookState.loading ? (
+      {!singleBookState.book && loading ? (
         <div className="flex flex-col items-center">
           <h1 className="text-2xl font-bold text-indigo-500">
             Books loading. Please wait...
@@ -68,7 +67,9 @@ export default function BookOverview() {
           <EllipsisIndicator />
         </div>
       ) : !singleBookState.book ? (
-        <Error error={singleBookState.error ?? "Book not found"} />
+        <Error
+          error={singleBookState.error && !loading ? singleBookState.error : ""}
+        />
       ) : (
         <>
           <h1 className="text-2xl font-bold text-indigo-500">

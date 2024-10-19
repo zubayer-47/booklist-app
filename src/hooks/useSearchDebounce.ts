@@ -10,18 +10,24 @@ export default function useSearchDebounce(value: string, delay: number) {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
 
+      if (value) {
+        localStorage.setItem("persist_search", value);
+      }
+
       const searchQuery = value.replace(/ /g, "%20");
 
-      setQueryParams((prev) => ({
-        ...Object.fromEntries(prev),
-        search: searchQuery,
-      }));
+      if (searchQuery) {
+        setQueryParams((prev) => ({
+          ...Object.fromEntries(prev),
+          search: searchQuery,
+        }));
+      }
     }, delay);
 
     return () => {
       clearTimeout(handler);
     };
-  }, [value, delay]);
+  }, [value, delay, setQueryParams]);
 
   return debouncedValue;
 }

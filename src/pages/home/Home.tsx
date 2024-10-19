@@ -1,20 +1,40 @@
-import { ChangeEvent, useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import BookList from "../../components/BookList";
 import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
+import useQueryParams from "../../hooks/useQueryParams";
 import useSearchDebounce from "../../hooks/useSearchDebounce";
 import { Book } from "../../types/api.types";
 
-import useQueryParams from "../../hooks/useQueryParams";
 export default function Home() {
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("all");
   useSearchDebounce(searchTerm, 300);
-  const { books, loading, error } = useAppContext();
+  const { books, loading, error, count, next, previous } = useAppContext();
   const booksPerPage = 32;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_queryParams, setQueryParams] = useQueryParams();
+  const numberOfPages = Math.ceil(count / booksPerPage);
+
+  useEffect(() => {
+    const page = parseInt(localStorage.getItem("persist_page") || "1", 10);
+    const search = localStorage.getItem("persist_search") || "";
+    const topic = localStorage.getItem("persist_genre") || "";
+
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      page: page.toString(),
+      search,
+      topic,
+    }));
+
+    setCurrentPage(page);
+    setSearchTerm(search);
+    setSelectedGenre(topic);
+  }, [setQueryParams]);
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
@@ -41,16 +61,40 @@ export default function Home() {
     return perPageBooksWithWishlisted;
   }, [books]);
 
+  const handleNext = () => {
+    setQueryParams();
+
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      page: (currentPage + 1).toString(),
+    }));
+
+    setCurrentPage((prev) => prev + 1);
+
+    localStorage.setItem("persist_page", (currentPage + 1).toString());
+  };
+
+  const handlePrev = () => {
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      page: (currentPage > 1 ? currentPage - 1 : 1).toString(),
+    }));
+
+    setCurrentPage((prev) => (prev > 1 ? prev - 1 : 1));
+    localStorage.setItem("persist_page", (currentPage - 1).toString());
+  };
+
   const handleSelect = (e: ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
 
-    // const topicQuery = value.replace(/ /g, "%20");
+    setSelectedGenre(value);
 
-    // console.log(topicQuery);
     setQueryParams((prev) => ({
       ...Object.fromEntries(prev),
       topic: value,
     }));
+
+    localStorage.setItem("persist_genre", value);
   };
 
   const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -105,16 +149,33 @@ export default function Home() {
         name="genre"
         className="p-2 focus:outline-none rounded-md bg-slate-200 w-full mb-5"
         onChange={handleSelect}
+        value={selectedGenre}
       >
-        <option defaultChecked value="">
-          Genre/Topic
-        </option>
+        {loading && !uniqueGenres.length && selectedGenre ? (
+          <option defaultChecked value={selectedGenre}>
+            {selectedGenre}
+          </option>
+        ) : (
+          <option defaultChecked value="">
+            Genre/Topic - all
+          </option>
+        )}
         {renderOptions()}
       </select>
 
       {renderBookList()}
 
-      {books.length ? <Pagination booksPerPage={booksPerPage} /> : null}
+      {books.length ? (
+        <Pagination
+          currentPage={currentPage}
+          numberOfPages={numberOfPages}
+          loading={loading}
+          next={!!next}
+          previous={!!previous}
+          handleNext={handleNext}
+          handlePrev={handlePrev}
+        />
+      ) : null}
     </div>
   );
 }

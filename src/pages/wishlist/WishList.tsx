@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { ChangeEvent, useEffect, useMemo } from "react";
 
 import { useState } from "react";
 import BookList from "../../components/BookList";
@@ -7,9 +7,28 @@ import { Book } from "../../types/api.types";
 
 export default function WishList() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [wishlistedBooks, setWishlistedBooks] = useState<Book[]>([]);
-
+  const [wishlistedBooks, setWishlistedBooks] = useState<Book[]>(() => {
+    const storedBooks = localStorage.getItem("wishlistedBooks");
+    return storedBooks ? JSON.parse(storedBooks) : [];
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("all");
   const booksPerPage = 6;
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const wishlisted: Book[] = JSON.parse(
+        localStorage.getItem("wishlistedBooks") || "[]"
+      );
+
+      setWishlistedBooks(wishlisted);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
@@ -21,19 +40,47 @@ export default function WishList() {
   }, [wishlistedBooks]);
 
   const indexOfLastBook = currentPage * booksPerPage;
-  const currentBooks = useMemo(() => {
+  const { currentBooks, filteredBooksLength, numberOfPages } = useMemo(() => {
     const indexOfFirstBook = indexOfLastBook - booksPerPage;
-    const wishlistedLocalStorageBooks: Book[] = JSON.parse(
-      localStorage.getItem("wishlistedBooks") || "[]"
-    );
 
-    setWishlistedBooks(wishlistedLocalStorageBooks);
+    let books = wishlistedBooks;
 
-    return wishlistedLocalStorageBooks.slice(indexOfFirstBook, indexOfLastBook);
-  }, [indexOfLastBook]);
+    if (selectedGenre !== "all") {
+      books = books.filter((book) => book.bookshelves.includes(selectedGenre));
+    }
 
-  // Handle page change
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+    if (searchTerm) {
+      books = books.filter((book) =>
+        book.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    return {
+      currentBooks: books.slice(indexOfFirstBook, indexOfLastBook),
+      filteredBooksLength: books.length,
+      numberOfPages: Math.ceil(books.length / booksPerPage),
+    };
+  }, [indexOfLastBook, wishlistedBooks, selectedGenre, searchTerm]);
+
+  const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+
+    setSearchTerm(value);
+  };
+
+  const handleSelect = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+
+    setSelectedGenre(value);
+  };
+
+  const handleNext = () => {
+    setCurrentPage((prev) => prev + 1);
+  };
+
+  const handlePrev = () => {
+    setCurrentPage((prev) => (prev > 1 ? prev - 1 : 1));
+  };
 
   return (
     <div className="mx-2 lg:mx-40">
@@ -42,6 +89,8 @@ export default function WishList() {
           type="search"
           name="search"
           placeholder="Search books..."
+          value={searchTerm}
+          onChange={handleSearchTermChange}
           className="p-2 rounded-md border border-slate-200 focus:outline-none focus:ring ring-indigo-300 w-full"
         />
 
@@ -54,12 +103,11 @@ export default function WishList() {
       </form>
 
       <select
-        name=""
-        id=""
         className="p-2 focus:outline-none rounded-md bg-slate-200 w-full mb-5"
+        onChange={handleSelect}
       >
-        <option defaultChecked value="genre">
-          Genre/Topic
+        <option defaultChecked value="all">
+          Genre/Topic - All
         </option>
         {uniqueGenres.map((genre) => (
           <option key={genre} value={genre}>
@@ -72,11 +120,13 @@ export default function WishList() {
 
       {wishlistedBooks.length ? (
         <Pagination
-          booksPerPage={booksPerPage}
           currentPage={currentPage}
-          indexOfLastBook={indexOfLastBook}
-          lengthOfBooks={wishlistedBooks.length}
-          paginate={paginate}
+          numberOfPages={numberOfPages}
+          loading={false}
+          next={indexOfLastBook < filteredBooksLength}
+          previous={currentPage > 1}
+          handleNext={handleNext}
+          handlePrev={handlePrev}
         />
       ) : null}
     </div>

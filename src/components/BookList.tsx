@@ -20,11 +20,6 @@ Props) {
   const handleWishListToggle = useCallback(
     (id: number) => {
       const clonedBooks = [...books];
-
-      // if (debouncedValue) {
-      //   clonedBooks = [...queryBooks];
-      // }
-
       const book = clonedBooks.find((b) => b.id === id);
 
       if (book) {
@@ -35,7 +30,6 @@ Props) {
 
       // doing this because if the operation is too large then the globalState will update later
       // in this case, I just want to update the wishlistedBooks into the global state at first then update the localStorage as wishes. So, now I don't have any problem with UI peformance.
-
       const prevWishlistedBooks: Book[] | any[] = JSON.parse(
         localStorage.getItem("wishlistedBooks") || "[]"
       );
@@ -53,6 +47,8 @@ Props) {
           "wishlistedBooks",
           JSON.stringify([...wishlistedMap.values()])
         );
+
+        dispatchEvent(new Event("storage"));
       }
     },
     [books, updateBooks]
@@ -88,6 +84,7 @@ Props) {
                 <Link
                   to={`/${book.id}`}
                   className="text-xl font-bold text-slate-900 w-72 truncate block"
+                  // target="_blank"
                 >
                   {book.title}
                 </Link>

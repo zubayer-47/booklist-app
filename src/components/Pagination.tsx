@@ -1,39 +1,22 @@
-import { useState } from "react";
-import useAppContext from "../hooks/useAppContext";
-import useQueryParams from "../hooks/useQueryParams";
-
 type Props = {
-  booksPerPage: number;
+  currentPage: number;
+  numberOfPages: number;
+  loading: boolean;
+  next: boolean;
+  previous: boolean;
+  handleNext: () => void;
+  handlePrev: () => void;
 };
 
-export default function Pagination({ booksPerPage }: Props) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const { count, next, previous, loading } = useAppContext();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_queryParams, setQueryParams] = useQueryParams();
-
-  const numberOfPages = Math.ceil(count / booksPerPage);
-
-  const handleNext = () => {
-    setQueryParams();
-
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      page: (currentPage + 1).toString(),
-    }));
-
-    setCurrentPage((prev) => prev + 1);
-  };
-
-  const handlePrev = () => {
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      page: (currentPage > 1 ? currentPage - 1 : 1).toString(),
-    }));
-
-    setCurrentPage((prev) => (prev > 1 ? prev - 1 : 1));
-  };
-
+export default function Pagination({
+  currentPage,
+  numberOfPages,
+  loading,
+  next,
+  previous,
+  handleNext,
+  handlePrev,
+}: Props) {
   return (
     <div className="flex justify-between items-center my-5">
       <button
