@@ -4,25 +4,17 @@ import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
-import useDebounce from "../../hooks/useDebounce";
-import useFetch from "../../hooks/useFetch";
+import useSearchDebounce from "../../hooks/useSearchDebounce";
 import { Book } from "../../types/api.types";
 
+import useQueryParams from "../../hooks/useQueryParams";
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
-  const debouncedValue = useDebounce(searchTerm, 300);
-  const { books } = useAppContext();
-  const {
-    currentBooks,
-    error,
-    loading,
-    paginate,
-    booksPerPage,
-    indexOfLastBook,
-    searchedBooks,
-    next,
-    currentPage,
-  } = useFetch(debouncedValue || "", "");
+  useSearchDebounce(searchTerm, 300);
+  const { books, loading, error } = useAppContext();
+  const booksPerPage = 32;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_queryParams, setQueryParams] = useQueryParams();
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
@@ -32,6 +24,34 @@ export default function Home() {
 
     return [...uniqueGenres];
   }, [books]);
+
+  const currentBooks = useMemo(() => {
+    const wishlistedBooks: Book[] = JSON.parse(
+      localStorage.getItem("wishlistedBooks") || "[]"
+    );
+
+    const perPageBooksWithWishlisted = books.map((book) => {
+      const isWishlisted = wishlistedBooks.some(
+        (wishListedbook) => wishListedbook.id === book.id
+      );
+
+      return { ...book, wishlisted: isWishlisted };
+    });
+
+    return perPageBooksWithWishlisted;
+  }, [books]);
+
+  const handleSelect = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+
+    // const topicQuery = value.replace(/ /g, "%20");
+
+    // console.log(topicQuery);
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      topic: value,
+    }));
+  };
 
   const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -60,7 +80,7 @@ export default function Home() {
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
-      return <option>Loading...</option>;
+      return <option value="">Loading...</option>;
     }
 
     return uniqueGenres.map((genre) => (
@@ -72,9 +92,6 @@ export default function Home() {
 
   return (
     <div className="mx-2 lg:mx-40">
-      {/* <form
-        className="flex justify-center items-center gap-2 my-2"
-      > */}
       <input
         type="search"
         name="search"
@@ -84,20 +101,12 @@ export default function Home() {
         className="p-2 rounded-md border border-slate-200 focus:outline-none focus:ring ring-indigo-300 w-full my-2"
       />
 
-      {/* <button
-          type="submit"
-          className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-500 transition-colors text-slate-50 py-2 px-4 text-sm rounded"
-        >
-          Search
-        </button> */}
-      {/* </form> */}
-
       <select
-        name=""
-        id=""
+        name="genre"
         className="p-2 focus:outline-none rounded-md bg-slate-200 w-full mb-5"
+        onChange={handleSelect}
       >
-        <option defaultChecked value="genre">
+        <option defaultChecked value="">
           Genre/Topic
         </option>
         {renderOptions()}
@@ -105,16 +114,7 @@ export default function Home() {
 
       {renderBookList()}
 
-      {books.length ? (
-        <Pagination
-          booksPerPage={booksPerPage}
-          currentPage={currentPage}
-          indexOfLastBook={indexOfLastBook}
-          lengthOfBooks={debouncedValue ? searchedBooks.length : books.length}
-          next={next}
-          paginate={paginate}
-        />
-      ) : null}
+      {books.length ? <Pagination booksPerPage={booksPerPage} /> : null}
     </div>
   );
 }

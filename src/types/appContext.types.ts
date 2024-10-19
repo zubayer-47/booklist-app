@@ -7,18 +7,19 @@ import { Book } from "./api.types";
 // }
 
 export type BookState = {
+  count: number;
   books: Book[];
   next: string | null;
   previous: string | null;
-  url: string | null;
 };
 
 export type AppContextValue = {
+  count: number;
   books: Book[];
   next: string | null;
   previous: string | null;
-  url: string | null;
-  reqOnNewUrl: (url: string) => void;
+  loading: boolean;
+  error: string | null;
   updateBooks: (books: Book[]) => void;
   setBookState: Dispatch<React.SetStateAction<BookState>>;
 };

@@ -1,39 +1,45 @@
-import { useMemo } from "react";
+import { useState } from "react";
 import useAppContext from "../hooks/useAppContext";
+import useQueryParams from "../hooks/useQueryParams";
 
 type Props = {
-  currentPage: number;
-  indexOfLastBook: number;
-  lengthOfBooks: number;
   booksPerPage: number;
-  next: string | null;
-  paginate(pageNumber: number): void;
 };
 
-export default function Pagination({
-  currentPage,
-  indexOfLastBook,
-  lengthOfBooks,
-  booksPerPage,
-  next,
-  paginate,
-}: Props) {
-  const { reqOnNewUrl } = useAppContext();
+export default function Pagination({ booksPerPage }: Props) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const { count, next, previous, loading } = useAppContext();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_queryParams, setQueryParams] = useQueryParams();
 
-  const numberOfPages = Math.ceil(lengthOfBooks / booksPerPage);
+  const numberOfPages = Math.ceil(count / booksPerPage);
 
-  useMemo(() => {
-    console.log(numberOfPages - 2 === currentPage);
-    if (numberOfPages - 2 === currentPage && next) {
-      reqOnNewUrl(next);
-    }
-  }, [next, reqOnNewUrl, numberOfPages, currentPage]);
+  const handleNext = () => {
+    setQueryParams();
+
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      page: (currentPage + 1).toString(),
+    }));
+
+    setCurrentPage((prev) => prev + 1);
+  };
+
+  const handlePrev = () => {
+    setQueryParams((prev) => ({
+      ...Object.fromEntries(prev),
+      page: (currentPage > 1 ? currentPage - 1 : 1).toString(),
+    }));
+
+    setCurrentPage((prev) => (prev > 1 ? prev - 1 : 1));
+  };
 
   return (
     <div className="flex justify-between items-center my-5">
       <button
-        onClick={() => paginate(currentPage - 1)}
-        disabled={currentPage === 1}
+        // onClick={() => paginate(currentPage - 1)}
+        onClick={handlePrev}
+        disabled={loading || !previous}
         className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-500 transition-colors text-slate-50 py-2 px-4 text-sm rounded"
       >
         Previous
@@ -42,8 +48,8 @@ export default function Pagination({
         Page {currentPage} of {numberOfPages}
       </p>
       <button
-        onClick={() => paginate(currentPage + 1)}
-        disabled={indexOfLastBook >= lengthOfBooks}
+        onClick={handleNext}
+        disabled={loading || !next}
         className="bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-500 transition-colors text-slate-50 py-2 px-4 text-sm rounded"
       >
         Next

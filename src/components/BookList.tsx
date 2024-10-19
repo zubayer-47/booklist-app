@@ -6,14 +6,25 @@ import { Book } from "../types/api.types";
 
 type Props = {
   currentBooks: Book[];
+  // queryBooks: Book[];
+  // debouncedValue: string;
 };
 
-export default function BookList({ currentBooks }: Props) {
+export default function BookList({
+  currentBooks,
+}: // queryBooks,
+// debouncedValue,
+Props) {
   const { books, updateBooks } = useAppContext();
 
   const handleWishListToggle = useCallback(
     (id: number) => {
       const clonedBooks = [...books];
+
+      // if (debouncedValue) {
+      //   clonedBooks = [...queryBooks];
+      // }
+
       const book = clonedBooks.find((b) => b.id === id);
 
       if (book) {
@@ -46,6 +57,7 @@ export default function BookList({ currentBooks }: Props) {
     },
     [books, updateBooks]
   );
+
   return (
     <ul className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-7 text-center">
       {currentBooks.length ? (
