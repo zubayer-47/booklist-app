@@ -9,35 +9,43 @@ import useSearchDebounce from "../../hooks/useSearchDebounce";
 import { Book } from "../../types/api.types";
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGenre, setSelectedGenre] = useState("all");
   useSearchDebounce(searchTerm, 300);
   const { books, loading, error, count, next, previous } = useAppContext();
-  const booksPerPage = 32;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_queryParams, setQueryParams] = useQueryParams();
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const booksPerPage = 32;
   const numberOfPages = Math.ceil(count / booksPerPage);
 
   useEffect(() => {
     const page = parseInt(localStorage.getItem("persist_page") || "1", 10);
-    const search = localStorage.getItem("persist_search") || "";
-    const topic = localStorage.getItem("persist_genre") || "";
+    let search = localStorage.getItem("persist_search") || "";
+    let topic = localStorage.getItem("persist_genre") || "";
+
+    search = search == "null" || search === "undefined" ? "" : search;
+    topic = topic == "null" || topic === "undefined" ? "" : topic;
 
     setQueryParams((prev) => ({
       ...Object.fromEntries(prev),
       page: page.toString(),
-      search,
-      topic,
+      search: search,
+      topic: topic,
     }));
 
     setCurrentPage(page);
     setSearchTerm(search);
     setSelectedGenre(topic);
-  }, [setQueryParams]);
+  }, []);
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
+    if (!books) {
+      return [];
+    }
+
     const uniqueGenres = new Set(
       books.flatMap((book: Book) => book.bookshelves)
     );
@@ -151,15 +159,15 @@ export default function Home() {
         onChange={handleSelect}
         value={selectedGenre}
       >
-        {loading && !uniqueGenres.length && selectedGenre ? (
+        {/* {selectedGenre ? (
           <option defaultChecked value={selectedGenre}>
             {selectedGenre}
           </option>
-        ) : (
-          <option defaultChecked value="">
-            Genre/Topic - all
-          </option>
-        )}
+        ) : ( */}
+        <option defaultChecked value="">
+          Genre/Topic - all
+        </option>
+        {/* )} */}
         {renderOptions()}
       </select>
 

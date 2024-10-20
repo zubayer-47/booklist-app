@@ -16,12 +16,20 @@ export default function useSearchDebounce(value: string, delay: number) {
 
       const searchQuery = value.replace(/ /g, "%20");
 
-      if (searchQuery) {
-        setQueryParams((prev) => ({
+      // if (searchQuery) {
+      setQueryParams((prev) => {
+        const prevSearchQuery = prev.get("search");
+
+        const notSameFromPrev = prevSearchQuery !== searchQuery;
+
+        return {
           ...Object.fromEntries(prev),
-          search: searchQuery,
-        }));
-      }
+          search:
+            prevSearchQuery !== searchQuery ? searchQuery : prevSearchQuery,
+          page: notSameFromPrev ? "1" : prev.get("page") || "1",
+        };
+      });
+      // }
     }, delay);
 
     return () => {
