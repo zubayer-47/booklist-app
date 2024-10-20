@@ -1,31 +1,7 @@
-import React, { createContext, ReactNode, useEffect, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useState } from "react";
+import encodeURI from "../lib/encodeURI";
 import { Book } from "../types/api.types";
-import { AppContextValue } from "../types/appContext.types";
-
-// const initialState: InitialStateType = {
-//   books: [],
-//   error: null,
-// };
-
-// function appReducer(state: InitialStateType, action: AppAction) {
-//   switch (action.type) {
-//     case "SET_BOOKS":
-//       return { ...state, books: action.payload };
-//     case "UPDATE_BOOKS":
-//       return {
-//         ...state,
-//         books: action.payload,
-//       };
-//     default:
-//       return state;
-//   }
-// }
-
-type BookState = {
-  books: Book[];
-  loading: boolean;
-  error: string | null;
-};
+import { AppContextValue, BookState } from "../types/appContext.types";
 
 export const AppContext = createContext<AppContextValue | undefined>(undefined);
 
@@ -34,46 +10,64 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [bookState, setBookState] = useState<BookState>({
+    count: 0,
     books: [],
-    loading: true,
-    error: null,
+    next: null,
+    previous: null,
   });
-  //   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [cache, setCache] = useState<Record<string, BookState>>({});
 
-  useEffect(() => {
-    const controller = new AbortController();
+  const fetchBooks = useCallback(
+    async (
+      page: number,
+      searchTerm: string,
+      genre: string,
+      signal: AbortSignal
+    ) => {
+      searchTerm = encodeURI(searchTerm);
+      genre = encodeURI(genre);
 
-    const fetchBooks = async () => {
+      const cacheKey = `${page}-${searchTerm}-${genre}`;
+
+      if (cache[cacheKey]) {
+        setBookState(cache[cacheKey]);
+        return;
+      }
+
       try {
-        const response = await fetch("https://gutendex.com/books", {
-          signal: controller.signal,
-        });
-        const data = await response.json();
+        const response = await fetch(
+          `https://gutendex.com/books?page=${page}&search=${searchTerm}&topic=${genre}`,
+          {
+            signal,
+          }
+        );
 
-        setBookState((prev) => ({
-          ...prev,
-          loading: false,
-          books: data.results,
-        }));
+        const data = await response.json();
+        if (response.status === 200) {
+          const newBookState = {
+            count: data.count,
+            next: data.next,
+            previous: data.previous,
+            books: data.results,
+          };
+
+          setBookState(newBookState);
+
+          setCache((prev) => ({
+            ...prev,
+            [cacheKey]: newBookState,
+          }));
+        } else {
+          return "Something went wrong";
+        }
       } catch (error: any) {
         if ("detail" in error) {
-          setBookState((prev) => ({
-            ...prev,
-            loading: false,
-            error: error.detail,
-          }));
+          return error.detail;
         }
-
-        console.error("Error fetching books data:", error);
       }
-    };
-
-    fetchBooks();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
+    },
+    [cache]
+  );
 
   const updateBooks = (books: Book[]) => {
     setBookState((prev) => ({
@@ -84,6 +78,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   const value: AppContextValue = {
     ...bookState,
+    cache,
+    setBookState,
+    fetchBooks,
     updateBooks,
   };
 

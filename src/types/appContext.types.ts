@@ -1,3 +1,4 @@
+// import { Dispatch } from "react";
 import { Book } from "./api.types";
 
 // interface AppContextState {
@@ -5,12 +6,24 @@ import { Book } from "./api.types";
 //   error: string | null;
 // }
 
-export type AppContextValue = {
+export interface BookState {
+  count: number;
   books: Book[];
-  loading: boolean;
-  error: string | null;
+  next: string | null;
+  previous: string | null;
+}
+
+export interface AppContextValue extends BookState {
+  cache: Record<string, BookState>;
+  setBookState: React.Dispatch<React.SetStateAction<BookState>>;
+  fetchBooks: (
+    page: number,
+    searchTerm: string,
+    genre: string,
+    signal: AbortSignal
+  ) => Promise<string | null>;
   updateBooks: (books: Book[]) => void;
-};
+}
 
 // export type InitialStateType = { books: Book[]; error: string | null };
 
