@@ -4,17 +4,18 @@ import EllipsisIndicator from "../../components/EllipsisIndicator";
 import Error from "../../components/Error";
 import Pagination from "../../components/Pagination";
 import useAppContext from "../../hooks/useAppContext";
-import useQueryParams from "../../hooks/useQueryParams";
 import useSearchDebounce from "../../hooks/useSearchDebounce";
+import decodeURI from "../../lib/decodeURI";
 import { Book } from "../../types/api.types";
 
 export default function Home() {
+  const { books, next, previous, count, setBookState, fetchBooks } =
+    useAppContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState("all");
-  useSearchDebounce(searchTerm, 300);
-  const { books, loading, error, count, next, previous } = useAppContext();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_queryParams, setQueryParams] = useQueryParams();
+  const debouncedValue = useSearchDebounce(searchTerm, 300);
+  const [selectedGenre, setSelectedGenre] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const booksPerPage = 32;
@@ -28,24 +29,44 @@ export default function Home() {
     search = search == "null" || search === "undefined" ? "" : search;
     topic = topic == "null" || topic === "undefined" ? "" : topic;
 
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      page: page.toString(),
-      search: search,
-      topic: topic,
-    }));
-
     setCurrentPage(page);
     setSearchTerm(search);
     setSelectedGenre(topic);
-  }, []);
+  }, [debouncedValue]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let isMounted = true;
+
+    (async () => {
+      try {
+        setLoading(true);
+        const ErrResponse = await fetchBooks(
+          currentPage,
+          debouncedValue,
+          selectedGenre,
+          controller.signal
+        );
+        if (ErrResponse) {
+          setError(ErrResponse);
+        }
+      } catch (error: any) {
+        setError(error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+      isMounted = false;
+    };
+  }, [currentPage, debouncedValue, selectedGenre, fetchBooks, setBookState]);
 
   // get unique genres from books to filter by genres/topic
   const uniqueGenres = useMemo(() => {
-    if (!books) {
-      return [];
-    }
-
     const uniqueGenres = new Set(
       books.flatMap((book: Book) => book.bookshelves)
     );
@@ -70,24 +91,12 @@ export default function Home() {
   }, [books]);
 
   const handleNext = () => {
-    setQueryParams();
-
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      page: (currentPage + 1).toString(),
-    }));
-
     setCurrentPage((prev) => prev + 1);
 
     localStorage.setItem("persist_page", (currentPage + 1).toString());
   };
 
   const handlePrev = () => {
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      page: (currentPage > 1 ? currentPage - 1 : 1).toString(),
-    }));
-
     setCurrentPage((prev) => (prev > 1 ? prev - 1 : 1));
     localStorage.setItem("persist_page", (currentPage - 1).toString());
   };
@@ -95,19 +104,22 @@ export default function Home() {
   const handleSelect = (e: ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
 
-    setSelectedGenre(value);
+    let persist_genre = localStorage.getItem("persist_genre");
 
-    setQueryParams((prev) => ({
-      ...Object.fromEntries(prev),
-      topic: value,
-    }));
+    persist_genre = decodeURI(persist_genre || "");
+
+    if (value !== persist_genre) {
+      localStorage.setItem("persist_page", "1");
+      setCurrentPage(1);
+    }
+
+    setSelectedGenre(value);
 
     localStorage.setItem("persist_genre", value);
   };
 
   const handleSearchTermChange = (e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-
     setSearchTerm(value);
   };
 
@@ -127,8 +139,8 @@ export default function Home() {
       );
     }
 
-    return <BookList currentBooks={currentBooks} />;
-  }, [error, loading, currentBooks]);
+    return <BookList currentBooks={currentBooks} books={books} />;
+  }, [error, loading, currentBooks, books]);
 
   const renderOptions = useCallback(() => {
     if (loading && !uniqueGenres.length) {
@@ -159,15 +171,9 @@ export default function Home() {
         onChange={handleSelect}
         value={selectedGenre}
       >
-        {/* {selectedGenre ? (
-          <option defaultChecked value={selectedGenre}>
-            {selectedGenre}
-          </option>
-        ) : ( */}
         <option defaultChecked value="">
           Genre/Topic - all
         </option>
-        {/* )} */}
         {renderOptions()}
       </select>
 

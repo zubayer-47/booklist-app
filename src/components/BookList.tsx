@@ -6,16 +6,17 @@ import { Book } from "../types/api.types";
 
 type Props = {
   currentBooks: Book[];
-  // queryBooks: Book[];
-  // debouncedValue: string;
+  books: Book[];
+  // updateBooks: (books: Book[]) => void;
 };
 
 export default function BookList({
   currentBooks,
+  books,
 }: // queryBooks,
 // debouncedValue,
 Props) {
-  const { books, updateBooks } = useAppContext();
+  const { updateBooks } = useAppContext();
 
   const handleWishListToggle = useCallback(
     (id: number) => {
@@ -106,6 +107,12 @@ Props) {
                     </button>
                   ))
                 : null}
+
+              <h4 className="text-muted text-sm">
+                {book.bookshelves.length > 4
+                  ? `+${book.bookshelves.length}`
+                  : null}
+              </h4>
             </div>
           </li>
         ))

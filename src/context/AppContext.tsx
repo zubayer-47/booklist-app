@@ -1,6 +1,5 @@
-import React, { createContext, ReactNode, useEffect, useState } from "react";
-import useQueryParams from "../hooks/useQueryParams";
-import decodeURI from "../lib/decodeURI";
+import React, { createContext, ReactNode, useCallback, useState } from "react";
+import encodeURI from "../lib/encodeURI";
 import { Book } from "../types/api.types";
 import { AppContextValue, BookState } from "../types/appContext.types";
 
@@ -16,76 +15,59 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     next: null,
     previous: null,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [queryParams] = useQueryParams();
+  const [cache, setCache] = useState<Record<string, BookState>>({});
 
-  const pageNumber = parseInt(queryParams.get("page") || "1", 10);
-  const page = pageNumber > 0 ? pageNumber : 1;
-  const search = queryParams.get("search");
-  const topic = queryParams.get("topic");
+  const fetchBooks = useCallback(
+    async (
+      page: number,
+      searchTerm: string,
+      genre: string,
+      signal: AbortSignal
+    ) => {
+      searchTerm = encodeURI(searchTerm);
+      genre = encodeURI(genre);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let isMounted = true;
+      const cacheKey = `${page}-${searchTerm}-${genre}`;
 
-    const fetchBooks = async () => {
-      const encodedSearch = search?.replace(/%3A|\+|\s|&/g, function (match) {
-        if (match === "%3A") return ":";
-        if (match === "&") return "%26";
-        return "%20"; // Replace both + and whitespace with %20
-      });
-      const encodedTopic = topic?.replace(/%3A|\+|\s|&/g, function (match) {
-        if (match === "%3A") return ":";
-        if (match === "&") return "%26";
-        return "%20"; // Replace both + and whitespace with %20
-      });
+      if (cache[cacheKey]) {
+        setBookState(cache[cacheKey]);
+        return;
+      }
 
       try {
-        setLoading(true);
         const response = await fetch(
-          `https://gutendex.com/books?page=${page ?? 1}&search=${
-            encodedSearch ?? ""
-          }&topic=${encodedTopic ?? ""}`,
+          `https://gutendex.com/books?page=${page}&search=${searchTerm}&topic=${genre}`,
           {
-            signal: controller.signal,
+            signal,
           }
         );
 
         const data = await response.json();
-
         if (response.status === 200) {
-          setBookState({
+          const newBookState = {
             count: data.count,
             next: data.next,
             previous: data.previous,
             books: data.results,
-          });
+          };
 
-          localStorage.setItem("persist_page", JSON.stringify(page));
-          localStorage.setItem("persist_genre", decodeURI(topic || "null"));
-          localStorage.setItem("persist_search", decodeURI(search || "null"));
+          setBookState(newBookState);
+
+          setCache((prev) => ({
+            ...prev,
+            [cacheKey]: newBookState,
+          }));
         } else {
-          console.log({ response }, "try block but error");
+          return "Something went wrong";
         }
       } catch (error: any) {
-        console.log("error block", error);
         if ("detail" in error) {
-          setError(error.detail);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+          return error.detail;
         }
       }
-    };
-
-    fetchBooks();
-    return () => {
-      isMounted = false;
-      controller.abort();
-    };
-  }, [search, topic, page]);
+    },
+    [cache]
+  );
 
   const updateBooks = (books: Book[]) => {
     setBookState((prev) => ({
@@ -96,10 +78,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
 
   const value: AppContextValue = {
     ...bookState,
-    loading,
-    error,
-    updateBooks,
+    cache,
     setBookState,
+    fetchBooks,
+    updateBooks,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -116,7 +116,7 @@ export default function WishList() {
         ))}
       </select>
 
-      <BookList currentBooks={currentBooks} />
+      <BookList currentBooks={currentBooks} books={wishlistedBooks} />
 
       {wishlistedBooks.length ? (
         <Pagination
