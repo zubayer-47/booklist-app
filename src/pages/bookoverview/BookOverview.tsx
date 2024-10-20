@@ -72,7 +72,7 @@ export default function BookOverview() {
         />
       ) : (
         <>
-          <h1 className="text-2xl font-bold text-indigo-500">
+          <h1 className="text-2xl font-bold text-slate-900 text-center">
             {singleBookState.book?.title}
           </h1>
           <img
